@@ -1,0 +1,5 @@
+---
+sys_clean_apt: "no"
+sys_clean_history: "no"
+sys_clean_logs: "no"
+sys_clean_purge: "no"  # zero all block devices

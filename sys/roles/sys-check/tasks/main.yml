@@ -1,0 +1,107 @@
+---
+- block:
+  - name: "scan open ports"
+    become: false
+    raw: |
+      "{{role_path}}/files/helpers/search_ports" {{sys_check_target|quote}} {{sys_check_search_ports|quote}}
+    changed_when: sys_check_search_ports_out.stdout is search(':')
+    register: sys_check_search_ports_out
+    connection: local
+    delegate_to: localhost
+
+  - name: "set facts"
+    set_fact:
+      sys_check_open_ports: "{{sys_check_search_ports_out.stdout|regex_findall('OPEN_PORT:([0-9]+)','\\1')}}"
+      sys_check_ssh_pass_ports: "{{sys_check_search_ports_out.stdout|regex_findall('SSH_PASS:([0-9]+)','\\1')}}"
+      sys_check_ssh_keys_ports: "{{sys_check_search_ports_out.stdout|regex_findall('SSH_PUB:([0-9]+)','\\1')}}"
+    when: sys_check_search_ports_out.changed
+
+  when: sys_check_search_ports_enable ==  "yes"
+
+- block:
+  - name: "brut ssh keys"
+    become: false
+    raw: |
+      echo "{{sys_check_ssh_keys_ports|join('\n')}}" | \
+      "{{role_path}}/files/helpers/brut_ssh_keys" \
+        {{sys_check_target|quote}} \
+        {{sys_check_brut_ssh_keys_user_list|quote}} \
+        {{sys_check_brut_ssh_keys_dir|quote}} \
+        {{sys_check_brut_ssh_keys_first_match|quote}}
+    changed_when: sys_check_brut_ssh_keys_out.stdout is search('SSH_KEY_ACCESS')
+    register: sys_check_brut_ssh_keys_out
+    when: sys_check_ssh_keys_ports|default([])|length > 0
+    connection: local
+    delegate_to: localhost
+
+  - name: "set facts"
+    set_fact:
+      sys_check_ssh_keys_access: "{{sys_check_brut_ssh_keys_out.stdout|regex_findall('SSH_KEY_ACCESS:(.*)$','\\1')}}"
+    when: sys_check_brut_ssh_keys_out.changed
+
+  when: sys_check_brut_ssh_keys_enable ==  "yes"
+
+- block:
+  - name: "brut ssh pass"
+    become: false
+    raw: |
+      echo "{{sys_check_ssh_pass_ports|join('\n')}}" | \
+      "{{role_path}}/files/helpers/brut_ssh_pass" \
+        {{sys_check_target|quote}} \
+        {{sys_check_brut_ssh_pass_user_list|quote}} \
+        {{sys_check_brut_ssh_pass_list|quote}} \
+        {{sys_check_brut_ssh_pass_first_match|quote}}
+    changed_when: sys_check_brut_ssh_pass_out.stdout is search('SSH_PASS_ACCESS')
+    register: sys_check_brut_ssh_pass_out
+    when: sys_check_ssh_pass_ports|default([])|length > 0
+    connection: local
+    delegate_to: localhost
+
+  - name: "set facts"
+    set_fact:
+      sys_check_ssh_pass_access: "{{sys_check_brut_ssh_pass_out.stdout|regex_findall('SSH_PASS_ACCESS:(.*)$','\\1')}}"
+    when: sys_check_brut_ssh_pass_out.changed
+
+  when: sys_check_brut_ssh_pass_enable ==  "yes"
+
+- name: "report"
+  debug:
+    msg: "{{item}}"
+  with_items:
+    - "open_ports: {{sys_check_open_ports|default('')|join(',')}}"
+    - "sys_check_ssh_pass_ports: {{sys_check_ssh_pass_ports|default('')|join(',')}}"
+    - "sys_check_ssh_keys_ports: {{sys_check_ssh_keys_ports|default('')|join(',')}}"
+    - "sys_check_ssh_keys_access: {{sys_check_ssh_keys_access|default('')|join(',')}}"
+    - "sys_check_ssh_pass_access: {{sys_check_ssh_pass_access|default('')|join(',')}}"
+  when: sys_check_report == "yes"
+
+- block:
+  - name: "set access from key"
+    set_fact:
+      ansible_host: "{{sys_check_target}}"
+      ansible_port: "{{sys_check_ssh_keys_access[0].split(':')[1]|int}}"
+      ansible_user: "{{sys_check_ssh_keys_access[0].split(':')[0]}}"
+      ansible_ssh_private_key_file: "{{sys_check_ssh_keys_access[0].split(':')[2]}}"
+      sys_check_from_keys: "yes"
+    when: (sys_check_ssh_keys_access|default([])|length) > 0
+
+  - name: "set access from pass"
+    set_fact:
+      ansible_host: "{{sys_check_target}}"
+      ansible_port: "{{sys_check_ssh_pass_access[0].split(':')[1]|int}}"
+      ansible_user: "{{sys_check_ssh_pass_access[0].split(':')[0]}}"
+      ansible_ssh_pass: "{{sys_check_ssh_pass_access[0].split(':')[2]}}"
+      sys_check_from_pass: "yes"
+    when: sys_check_from_keys == "no" and ((sys_check_ssh_pass_access|default([])|length) > 0)
+
+  - name: "set default"
+    set_fact:
+      ansible_host: "{{sys_check_target}}"
+      ansible_port: "{{(sys_check_ssh_key_ports[0]|default(sys_check_ssh_pass_ports[0]|default('none:' + ansible_port|default('22')))).split(':')[1]}}"
+    when:
+      (sys_check_ssh_keys_ports|default([])|length > 0 or
+      sys_check_ssh_pass_ports|default([])|length > 0) and
+      sys_check_from_keys == "no" and
+      sys_check_from_pass == "no"
+
+  when: sys_check_set == "yes"

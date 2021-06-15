@@ -1,0 +1,190 @@
+---
+- block:
+  - name: "setup hostname"
+    hostname:
+        name: "{{sys_base_name_hn}}"
+
+  - name: "setup hosts"
+    blockinfile:
+      path: /etc/hosts
+      insertbefore: "127.0.0.1"
+      marker_begin: "HOSTNAME_BEGIN"
+      marker_end: "HOSTNAME_END"
+      state: "{{sys_base_name_state}}"
+      block: '{{sys_base_name_ip}} {{sys_base_name_fqdn}} {{sys_base_name_hn}}'
+
+  when: sys_base_name_set == "yes"
+
+- name: "setup custom hosts"
+  blockinfile:
+    path: /etc/hosts
+    marker_begin: "CUSTOM_HOSTS_BEGIN"
+    marker_end: "CUSTOM_HOSTS_END"
+    state: present
+    block: '{{sys_base_custom_hosts_data}}'
+  when: sys_base_custom_hosts_set == "yes"
+
+- name: "setup custom hosts"
+  blockinfile:
+    path: /etc/hosts
+    marker_begin: "CUSTOM_HOSTS_BEGIN"
+    marker_end: "CUSTOM_HOSTS_END"
+    state: absent
+    # block: '{{sys_base_custom_hosts_data}}'
+  when: sys_base_custom_hosts_set != "yes"
+
+- name: "setup resolv.conf"
+  template:
+    src: "{{sys_base_resolv_conf_template}}"
+    dest: "/etc/resolv.conf"
+    owner: root
+    group: root
+    mode: 0644
+  when: sys_base_resolv_conf_set == "yes"
+
+- name: "popularity contest"
+  file:
+    path: "/etc/cron.daily/popularity-contest"
+    state: "absent"
+  when: sys_base_popularity_contest == "no"
+
+- block:
+    - name: "setup timezone"
+      timezone:
+        name: "{{sys_base_time_tz}}"
+
+    - name: "purge ntp"
+      apt:
+        name: "ntp"
+        state: "absent"
+        purge: "yes"
+      when: sys_base_time_timesyncd_set == "yes"
+
+    - name: "configure timesyncd"
+      template:
+        src: "templates/etc/systemd/timesyncd.conf.j2"
+        dest: "/etc/systemd/timesyncd.conf"
+        owner: root
+        group: root
+        mode: 0644
+      register: sys_base_time_timesyncd_conf_out
+
+    - name: "enable timesyncd"
+      systemd:
+        name: "systemd-timesyncd"
+        state: "{{'restarted' if (sys_base_time_timesyncd_conf_out.changed) else 'started' }}"
+        enabled: "yes"
+        masked: "no"
+        daemon_reload: "yes"
+      when: sys_base_time_timesyncd_set == "yes"
+
+  when: sys_base_time_set == "yes"
+
+- name: "generate locale"
+  raw: |
+    TO_GEN="$(grep -E {{sys_base_locale_gen|quote}} /etc/locale.gen | sed -r 's/^# //g')"
+    ORIG="$(cat /etc/locale.gen)"
+    echo "
+    $TO_GEN
+    $ORIG
+    " | sort -u > /etc/locale.gen
+    locale-gen
+    update-locale LANG={{sys_base_locale_default|quote}}
+  changed_when: false
+  when: sys_base_locale_set == "yes"
+
+- name: "setup mount by dev"
+  include: fstab_by_dev.yml
+  when: sys_base_mount_set == "yes"
+  with_items: "{{sys_base_mount_by_dev}}"
+
+- name: "setup mount by path"
+  include: fstab_by_path.yml
+  when: sys_base_mount_set == "yes"
+  with_items: "{{sys_base_mount_by_path_default + sys_base_mount_by_path}}"
+
+### All about swap ###
+- name: "swapoff and remove fstab record {{item.src}}"
+  raw: |
+    swapoff {{item.src|quote}}
+    [ -b {{item.src|quote}} ] || rm -f {{item.src|quote}}
+    sed -r '\:^(#)?{{item.src}}\s.*swap\s.*:d' -i /etc/fstab
+  changed_when: false
+  when: item.state == "absent" and sys_base_swap_set == "yes"
+  with_items: "{{sys_base_swap_list}}"
+
+- block:
+  - name: "setup swap file {{item.src}}"
+    raw: |
+      if [ -b {{item.src|quote}} ]
+      then
+        if ! fgrep '{{item.src}}' /proc/swaps
+        then
+          mkswap {{item.src|quote}}
+          swapon {{item.src|quote}}
+        fi
+        exit 0
+      fi
+
+      if [ ! -e {{item.src|quote}} ]
+      then
+        dd if=/dev/zero of={{item.src}} bs=1048576 count={{item.size}}
+        chmod 600 {{item.src|quote}}
+        mkswap {{item.src|quote}}
+        swapon {{item.src|quote}}
+        exit 0
+      fi
+
+      if [ -f {{item.src|quote}} ]
+      then
+        SIZE="$(stat -c %s {{item.src|quote}})"
+        if [ "$SIZE" != "$((1048576*{{item.size}}))" ]
+        then
+          swapoff {{item.src|quote}}
+          dd if=/dev/zero of={{item.src}} bs=1048576 count={{item.size}}
+          chmod 600 {{item.src|quote}}
+          mkswap {{item.src|quote}}
+          swapon {{item.src|quote}}
+          exit 0
+        fi
+      fi
+    changed_when: false
+    when: item.state != "absent"
+    with_items: "{{sys_base_swap_list}}"
+
+  - name: "add fstab record {{item.src}}"
+    raw: |
+      if ! grep -E "{{item.src}}\s.*swap\s" /etc/fstab
+      then
+        echo "{{item.src}} none swap sw 0 0" >> /etc/fstab
+      fi
+    changed_when: false
+    when: item.state != "absent"
+    with_items: "{{sys_base_swap_list}}"
+
+  - name: "enable all swap records in fstab"
+    replace:
+      path: /etc/fstab
+      regexp: '^#(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+      replace: '\1\2\3swap\4'
+
+  - name: "swapon"
+    raw: |
+      swapon -a
+    changed_when: false
+
+  when: sys_base_swap == 'yes' and sys_base_swap_set == 'yes'
+
+- block:
+  - name: "disable swap"
+    raw: |
+      swapoff -a
+    changed_when: false
+
+  - name: "disable all swap records in fstab"
+    replace:
+      path: /etc/fstab
+      regexp: '^(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+      replace: '#\1\2\3swap\4'
+
+  when: sys_base_swap != 'yes' and sys_base_swap_set == 'yes'

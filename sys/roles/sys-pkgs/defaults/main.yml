@@ -1,0 +1,57 @@
+---
+sys_pkgs_present: "{{ lookup('vars', 'sys_pkgs_' + ansible_distribution_major_version + '_present')}}"
+sys_pkgs_absent: "{{ lookup('vars', 'sys_pkgs_' + ansible_distribution_major_version + '_absent')}}"
+
+sys_pkgs_any_present:
+  - "apt-transport-https=*"
+  - "vim=*"
+  - "sudo=*"
+  - "iotop=*"
+  - "iftop=*"
+  - "screen=*"
+  - "lzop=*"
+  - "pv=*"
+  - "procps=*"
+  - "lsof=*"
+  - "psmisc=*"
+  - "curl=*"
+  - "gnupg2=*"
+  - "less=*"
+  - "mc=*"
+  - "strace=*"
+  - "tcpdump=*"
+  - "htop=*"
+  - "man-db=*"
+  - "iproute2=*"
+  - "debian-archive-keyring=*"
+  - "bridge-utils=*"
+  - "bash-completion=*"
+  - "traceroute=*"
+  - "dnsutils=*"
+  - "net-tools=*"
+  - "jq=*"
+sys_pkgs_any_absent:
+  - "reportbug"
+  - "installation-report"
+  - "dictionaries-common"
+  - "emacsen-common"
+  - "iamerican"
+  - "ibritish"
+  - "laptop-detect"
+  - "wamerican"
+  - "joe"
+
+sys_pkgs_8_present:
+  - "{{sys_pkgs_any_present}}"
+sys_pkgs_8_absent:
+  - "{{sys_pkgs_any_absent}}"
+
+sys_pkgs_9_present:
+  - "{{sys_pkgs_any_present}}"
+sys_pkgs_9_absent:
+  - "{{sys_pkgs_any_absent}}"
+
+sys_pkgs_10_present:
+  - "{{sys_pkgs_any_present}}"
+sys_pkgs_10_absent:
+  - "{{sys_pkgs_any_absent}}"

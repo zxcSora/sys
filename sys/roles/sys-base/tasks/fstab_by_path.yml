@@ -1,0 +1,20 @@
+---
+- name: "get device {{item.path}}"
+  raw: |
+    sed -r 's/\s+/ /g' /etc/fstab | grep -m 1 -E '{{sys_base_mount_by_path_regex}} {{item.path}} [a-z0-9]+ ' | cut -d ' ' -f 1
+  changed_when: false
+  register: sys_base_mount_device_out
+
+- name: "get fstype {{item.path}}"
+  raw: |
+    sed -r 's/\s+/ /g' /etc/fstab | grep -m 1 -E '{{sys_base_mount_by_path_regex}} {{item.path}} [a-z0-9]+ ' | cut -d ' ' -f 3
+  changed_when: false
+  register: sys_base_mount_fstype_out
+
+- name: "setup mount {{item.path}} {{item.opts}}"
+  mount:
+    path: "{{item.path}}"
+    src: "{{sys_base_mount_device_out.stdout|trim}}"
+    fstype: "{{sys_base_mount_fstype_out.stdout|trim}}"
+    opts: "{{item.opts}}"
+    state: "mounted"

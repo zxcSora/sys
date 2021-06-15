@@ -1,0 +1,25 @@
+---
+- name: "clean fact"
+  set_fact:
+    bb_sys_ca_service_to_restart:
+
+- name: "set service to restart (sysv)"
+  set_fact:
+    bb_sys_ca_service_to_restart: "{{item.daemon}}"
+  when: item.daemon in services
+
+- name: "set service to restart (systemd)"
+  set_fact:
+    bb_sys_ca_service_to_restart: "{{item.daemon}}.service"
+  when: (item.daemon + ".service") in services
+
+- debug:
+    msg: "{{bb_sys_ca_service_to_restart}}"
+
+- name: "reload services"
+  service:
+    name: "{{bb_sys_ca_service_to_restart}}"
+    state: "{{item.state}}"
+  when:
+    - bb_sys_ca_service_to_restart in services
+    - services[bb_sys_ca_service_to_restart].state == "running"

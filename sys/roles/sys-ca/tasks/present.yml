@@ -1,0 +1,22 @@
+---
+- name: "set fact {{item.name}}"
+  set_fact:
+    sys_ca_filename: "/usr/local/share/ca-certificates/ansible.{{item.name}}.{{lookup('file', item.src)|hash('md5')}}.crt"
+
+- name: "setup ca {{item.name}}"
+  copy:
+    src: "{{item.src}}"
+    dest: "{{sys_ca_filename}}"
+    mode: "0644"
+    owner: "root"
+    group: "root"
+  register: "sys_ca_certs_cp_out"
+
+- name: "set managed files (add {{item.name}})"
+  set_fact:
+    sys_ca_managed_files: "{{sys_ca_managed_files}} + ['{{sys_ca_filename}}']"
+  when: sys_ca_clean_unmanaged == "yes"
+
+- name: "set fact about changed files for {{item.name}}"
+  set_fact:
+    sys_ca_certs_changed: "{{sys_ca_certs_changed or sys_ca_certs_cp_out.changed}}"

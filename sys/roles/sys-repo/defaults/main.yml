@@ -1,0 +1,10 @@
+---
+sys_repo:
+  - template: "templates/etc/apt/sources.list.d/official_{{ansible_distribution_release}}.list.j2"
+    state: "present"
+#   gpg: "files/gpg/6B73A36E6026DFCA.gpg"
+# - template: "official_{{ansible_distribution_release}}.list"
+#   state: "absent"
+#   gpg: "6B73A36E6026DFCA"
+sys_repo_update: "yes"
+sys_repo_clean_unmanaged: "yes"

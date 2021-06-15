@@ -1,0 +1,46 @@
+---
+- name: "setup sysctl"
+  template:
+    src: "{{item.template}}"
+    dest: "/etc/sysctl.d/{{item.template|basename|replace('.j2','')}}"
+    owner: root
+    group: root
+    mode: 0640
+  with_items: "{{sys_sysctl}}"
+  when: item.state == 'present'
+
+- name: "remove sysctl"
+  file:
+    path: "/etc/sysctl.d/{{item.template|basename|replace('.j2','')}}"
+    state: "absent"
+  with_items: "{{sys_sysctl}}"
+  when: item.state == 'absent'
+
+- block:
+  - name: "get existing files"
+    raw: |
+      find /etc/sysctl.d -type f -o -type l
+    register: sys_sysctl_current_files_out
+    changed_when: false
+
+  - name: "set managed files"
+    set_fact:
+      sys_sysctl_managed_files: "{{sys_sysctl_managed_files}} + ['/etc/sysctl.d/' + '{{item.template|basename|replace('.j2','')}}']"
+    when:
+      item.template is defined and
+      item.state == 'present'
+    with_items: "{{sys_sysctl}}"
+
+  - name: "clean unmanaged files"
+    file:
+      path: "{{item}}"
+      state: "absent"
+    with_items: "{{sys_sysctl_current_files_out.stdout_lines}}"
+    when: item not in sys_sysctl_managed_files
+
+  when: sys_sysctl_clean_unmanaged == 'yes'
+
+- name: "apply sysctl"
+  raw: |
+    sysctl --system
+  changed_when: false

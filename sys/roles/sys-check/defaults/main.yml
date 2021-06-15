@@ -1,0 +1,17 @@
+---
+sys_check_target: "{{inventory_hostname}}"
+sys_check_search_ports_enable: "yes"
+sys_check_search_ports: "22 2222 5000 8080 8443 443 80 5555"  # 22 23 100-500
+
+sys_check_brut_ssh_keys_enable: "yes"
+sys_check_brut_ssh_keys_user_list: "{{role_path}}/files/dicts/default_ssh_user.list"
+sys_check_brut_ssh_keys_dir: "{{role_path}}/files/keys"
+sys_check_brut_ssh_keys_first_match: "yes"
+
+sys_check_brut_ssh_pass_enable: "yes"
+sys_check_brut_ssh_pass_user_list: "{{role_path}}/files/dicts/default_ssh_user.list"
+sys_check_brut_ssh_pass_list: "{{role_path}}/files/dicts/default_ssh_pass.list"
+sys_check_brut_ssh_pass_first_match: "yes"
+
+sys_check_report: "yes"
+sys_check_set: "yes"

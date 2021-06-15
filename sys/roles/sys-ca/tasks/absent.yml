@@ -1,0 +1,18 @@
+---
+- name: "remove ca certificates by name for {{item.name|default('undefined')}}"
+  raw: |
+    find /usr/local/share/ca-certificates -name 'ansible.{{item.name}}.*.crt' -delete | head -n 1 | wc -l
+  changed_when: sys_ca_certs_clean_name_out.stdout is search('1')
+  when: item.name is defined
+  register: "sys_ca_certs_clean_name_out"
+
+- name: "remove ca certificates by hash for {{item.hash|default('undefined')}}"
+  raw: |
+    find /usr/local/share/ca-certificates -name 'ansible.*.{{item.hash}}.crt' -delete -print | head -n 1 | wc -l
+  changed_when: sys_ca_certs_clean_hash_out.stdout is search('1')
+  when: item.hash is defined
+  register: "sys_ca_certs_clean_hash_out"
+
+- name: "set fact about changed files"
+  set_fact:
+    sys_ca_certs_changed: "{{sys_ca_certs_changed or sys_ca_certs_clean_name_out.changed or sys_ca_certs_clean_hash_out.changed}}"

@@ -1,0 +1,7 @@
+#!/bin/sh
+
+ORIGIN="$(readlink -f "$0" | xargs dirname)"
+export PATH="$ORIGIN:$PATH"
+export LD_LIBRARY_PATH="$ORIGIN:$LD_LIBRARY_PATH"
+
+ld-linux-x86-64.so "$ORIGIN/ncrack.x86_64" "$@"

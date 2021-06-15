@@ -1,0 +1,25 @@
+---
+- name: "setup sshd"
+  template:
+    src: "{{sys_ssh_config}}"
+    dest: "/etc/ssh/sshd_config"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "reload configuration"
+  systemd:
+    name: "ssh"
+    state: "reloaded"
+    enabled: yes
+    masked: no
+  changed_when: false
+
+- name: "set SSH port for check"
+  set_fact:
+    ansible_port: "{{sys_ssh_port}}"
+
+- name: "check"
+  raw: |
+    true
+  changed_when: false

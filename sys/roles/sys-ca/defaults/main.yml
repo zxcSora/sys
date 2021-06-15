@@ -1,0 +1,27 @@
+---
+# purge all certificates in /usr/local/share/ca-certificates/
+sys_ca_purge: "no"
+# clean all certificates which currently is not managed by the role
+sys_ca_clean_unmanaged: "no"
+# force run of update-ca-certificates command
+sys_ca_force_update: "no"
+# list of certificates required to provide / remove
+sys_ca_certs: []
+# name: required (when state is "present"), used to form certificate filename
+# src: location of certificate on ansible control host
+# state: "present" to upload certificate, "absent" to remove
+# when state is "absent" `hash` field could be provided to delete all certificates with md5(file) == `hash`
+# when state is "absent" `name` field could be provided to delete all certificates with name(file) == `name`
+
+# - name: "bb_test_ca"
+#   src: "vault/test/certs/ca/rootCA.crt"
+#   state: "present"
+# - hash: "9ddba8bdde117c12eb901a827c4a40e6"
+#   state: "absent"
+# - name: "bb_stage_ca"
+#   state: "absent"
+
+sys_ca_reload_daemon: "no"
+sys_ca_reload_daemons:
+  - {daemon: "nginx", state: "reloaded"}
+  - {daemon: "docker", state: "restarted"}

@@ -1,0 +1,61 @@
+---
+# *_set - yes - use this step, no - skip this section
+
+# Setup hostname
+sys_base_name_set: "yes"
+sys_base_name_state: "present"
+sys_base_name_fqdn: "{{inventory_hostname}}"
+sys_base_name_hn: "{{inventory_hostname.split('.')[0]}}"
+sys_base_name_ip: "127.0.1.1"
+
+# Setup custom hosts
+sys_base_custom_hosts_set: "yes"
+sys_base_custom_hosts_data: |
+# 1.2.3.1 host1.example
+# 1.2.3.2 host2.example
+
+# Setup resolv.conf
+sys_base_resolv_conf_set: "yes"
+sys_base_resolv_conf_template: "templates/etc/resolv.conf.j2"
+sys_base_resolv_conf_ns1: "1.1.1.1"
+sys_base_resolv_conf_ns2: "8.8.8.8"
+
+# Popularity context
+sys_base_popularity_contest: "no"  # yes - skip step, no - disable
+
+# Setup time
+sys_base_time_set: "yes"
+sys_base_time_tz: "UTC"
+sys_base_time_timesyncd_set: "yes"  # WARNING set timesyncd, rollback not supported
+sys_base_time_timesyncd_ntp: "0.debian.pool.ntp.org 1.debian.pool.ntp.org"
+sys_base_time_timesyncd_fallback_ntp: "2.debian.pool.ntp.org 3.debian.pool.ntp.org"
+
+# Locales
+sys_base_locale_set: "yes"
+sys_base_locale_gen: "en_US|ru_RU|en_GB"
+sys_base_locale_default: "en_US.utf8"
+
+# Fstab and mount options
+sys_base_mount_set: "yes"
+sys_base_mount_opts_default: "errors=remount-ro,noatime,nodiratime,user_xattr"
+sys_base_mount_by_dev: []
+# - path: "/data"
+#   src: "/dev/sda1"
+#   state: "present" # present | absent | mounted | unmounted
+#   opts: "{{sys_base_mount_opts_default}}"
+#   fstype: "ext4"
+#   mode: "0755"
+#   owner: "root"
+#   group: "root"
+sys_base_mount_by_path_regex: "^[a-zA-Z0-9=-]+" # for uuid, for /dev/sda set "^[a-zA-Z0-9/=-]+"
+sys_base_mount_by_path: []
+sys_base_mount_by_path_default:
+  - {path: "/", opts: "{{sys_base_mount_opts_default}}"}
+
+# Setup swap
+sys_base_swap_set: "no"
+sys_base_swap: "no"  # yes - enable swap, process present and absent. no - process absent, disable swap, ex. like for k8s node
+sys_base_swap_list: []
+# - src: "/swap"
+#   state: "present"
+#   size: "4000" # MB

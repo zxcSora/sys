@@ -1,0 +1,27 @@
+#!/bin/sh
+
+TARGET="$1"
+PORTS="$2"
+
+ORIGIN="$(readlink -f "$0" | xargs dirname)"
+export PATH="$ORIGIN:$PATH"
+
+# recommends to make all checks on open ports ex. to detect multiplexers like sslh
+DISCOVERY_PORTS='
+    echo "OPEN_PORT:XXX"
+    ssh -v -n -p XXX \
+        -o ConnectTimeout=5 \
+        -o Batchmode=yes \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        penetrator@'"$TARGET"' echo 2>&1 | grep -m 1 -H --label=XXX "Authentications that can continue" | \
+        while read debug
+        do
+           echo "$debug" | grep -q "publickey" && echo "SSH_PUB:XXX"
+           echo "$debug" | grep -q "password" && echo "SSH_PASS:XXX"
+        done
+	true
+'
+
+nc -w 3 -zv "$TARGET" $PORTS 2>&1 | grep ' open' | cut -d ' ' -f 3 | \
+    xargs -P 16 -IXXX -n 1 -r sh -c "${DISCOVERY_PORTS}"

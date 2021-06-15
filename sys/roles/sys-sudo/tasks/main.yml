@@ -1,0 +1,41 @@
+---
+- name: "setup rules"
+  template:
+    src: "{{item.template}}"
+    dest: "/etc/sudoers.d/{{item.template|basename|replace('.j2','')}}"
+    owner: root
+    group: root
+    mode: 0440
+  with_items: "{{sys_sudo}}"
+  when: item.state == 'present'
+
+- name: "remove rules"
+  file:
+    path: "/etc/sudoers.d/{{item.template|basename|replace('.j2','')}}"
+    state: "absent"
+  with_items: "{{sys_sudo}}"
+  when: item.state == 'absent'
+
+- block:
+  - name: "get existing files"
+    raw: |
+      #cd /etc/sudoers.d || exit 1
+      find /etc/sudoers.d -type f -o -type l
+    register: sys_sudo_current_files_out
+    changed_when: False
+
+  - name: "set managed files"
+    set_fact:
+      sys_sudo_managed_files: "{{sys_sudo_managed_files}} + ['/etc/sudoers.d/' + '{{item.template|basename|replace('.j2','')}}']"
+    when:
+      item.template is defined and
+      item.state == 'present'
+    with_items: "{{sys_sudo}}"
+
+  - name: "clean unmanaged files"
+    file:
+      path: "{{item}}"
+      state: "absent"
+    with_items: "{{sys_sudo_current_files_out.stdout_lines}}"
+    when: item not in sys_sudo_managed_files
+  when: sys_sudo_clean_unmanaged == 'yes'

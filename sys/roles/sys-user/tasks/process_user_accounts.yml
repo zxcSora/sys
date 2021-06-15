@@ -1,0 +1,65 @@
+---
+- name: "process present {{item.name}}"
+  user:
+    name: "{{item.name}}"
+    state: "present"
+    comment: "{{item.comment|default()}}"
+    system: "{{item.system|default(omit)}}"
+    uid: "{{item.uid|default(omit)}}"
+    shell: "{{item.shell|default('/bin/bash')}}"
+    password: "{{item.password|default('!')}}"
+    # password_lock: "{{item.password_lock|default(omit)}}"
+    move_home: "{{item.move_home|default(true)}}"
+    home: "{{item.home|default(omit)}}"
+    group: "{{item.group|default(omit)}}"
+    groups: "{{item.groups|default(omit)}}"
+    expires: "{{item.expires|default(omit)}}"
+    create_home: "{{item.create_home|default(true)}}"
+  when: item.state == 'present'
+
+- name: "set authorized key {{item.name}}"
+  authorized_key:
+    user: "{{item.name}}"
+    key: "{{item.ssh_pubs|default([])|join('\n')}}"
+    state: present
+    exclusive: true
+  when: item.state == 'present'
+
+- name: "process inactive {{item.name}}"
+  raw: |
+    UH="$(getent passwd {{item.name|quote}} | cut -d: -f6)"
+    test -d "$UH" || exit 0
+
+    find "$UH" -maxdepth 0 -type d -mtime -{{item.inactive_timeout}} && OLD="yes"
+    last -n 1 --since '-{{item.inactive_timeout}}d' {{item.name|quote}} | fgrep {{item.name|quote}} && ACTIVITY="yes"
+
+    if [ ! "$ACTIVITY" = 'yes' ]
+    then
+      if [ ! "$OLD" = "yes" ]
+      then
+        chage -E0 {{item.name|quote}}
+        usermod -L {{item.name|quote}}
+        passwd -l {{item.name|quote}}
+        echo "CHANGED"
+      fi
+    fi
+  register: sys_user_inactivity_out
+  when:
+    item.state == 'present' and
+    item.inactive_timeout|default('0') != '0'
+  changed_when: sys_user_inactivity_out.stdout is search('CHANGED')
+
+- name: "kill process {{item.name}}"
+  raw: |
+    id {{item.name|quote}} && ps --no-header -u {{item.name|quote}} -o pid | xargs -r -n 1 kill -s 9
+    true
+  when: item.state == 'absent'
+  changed_when: false
+
+- name: "process absent {{item.name}}"
+  user:
+    name: "{{item.name}}"
+    state: "absent"
+    remove: "yes"
+    force: true
+  when: item.state == 'absent'

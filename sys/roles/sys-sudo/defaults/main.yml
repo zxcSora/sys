@@ -1,0 +1,6 @@
+---
+sys_sudo:
+  - {state: "present", template: "templates/etc/sudoers.d/10-ansible-no-pass.j2"}
+  - {state: "absent", template: "README"}
+sys_sudo_ignore: []
+sys_sudo_clean_unmanaged: "yes"

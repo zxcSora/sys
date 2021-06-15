@@ -1,0 +1,9 @@
+---
+sys_sysctl: "{{sys_sysctl_default}}"
+sys_sysctl_default:
+  - {state: "present", template: "templates/etc/sysctl.d/98-swappiness-min.conf.j2"}
+  - {state: "absent", template: "README.sysctl"}
+sys_sysctl_tuned_mmap:
+  - {state: "present", template: "templates/etc/sysctl.d/98-vm-max-map-count.conf.j2"}
+sys_sysctl_ignore: []
+sys_sysctl_clean_unmanaged: "yes"

@@ -1,0 +1,43 @@
+---
+- name: "clean apt"
+  raw: |
+    apt-get autoremove --purge
+    apt-get clean
+    apt-get autoclean
+    find /etc/apt/source.list /etc/apt/source.list.d/ -type f -o type l -delete
+    true
+  when: sys_clean_apt == "yes"
+
+- name: "clean histroy"
+  raw: |
+    find /home /root -type f  -name '.bash_history' -delete
+  changed_when: false
+  when: sys_clean_history == "yes"
+
+- name: "clean logs"
+  raw: |
+    systemctl stop systemd-journald.service
+    find /run/log -type f \( -name "*.journal" -o -name "*.journal~" \) -delete
+    find /var/log -type f -name "*.log" -print0 | xargs -0 -r -n 1 truncate -s 0
+    find /var/log -type f \( -name "*.gz" -o -name "*.1" -o -name "*.2" \) -delete
+    find /var/backups -type f -delete
+    find /var/lib/apt/lists -type f -delete
+    rm -rf /var/log/installer
+    systemctl start systemd-journald.service
+    true
+  when: sys_clean_logs == "yes"
+
+# Better to use sysrq but in this case role returns non 0 exit status
+# echo 1 > /proc/sys/kernel/sysrq
+# echo o > /proc/sysrq-trigger
+# echo b > /proc/sysrq-trigger
+- name: "purge"
+  raw: |
+    PURGE='find /dev/block ! -type d | xargs -P 32 -n 1 -IX dd if=/dev/zero of='X' bs=67108864'
+
+    nohup sh -c "$PURGE" >/dev/null 2>&1 &
+    echo "-- PURGE STARTED"
+    sleep 1
+    wait
+    true
+  when: sys_clean_purge == "yes"

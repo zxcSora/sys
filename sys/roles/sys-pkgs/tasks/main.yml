@@ -1,0 +1,19 @@
+---
+- name: "update apt cache"
+  apt:
+    update_cache: yes
+  changed_when: false
+  ignore_errors: true
+
+- name: "setup pkgs"
+  apt:
+    name: "{{item}}"
+    state: "present"
+  loop: "{{sys_pkgs_present|flatten}}"
+
+- name: "purge pkgs"
+  apt:
+    name: "{{item.split('=')[0]}}"
+    state: "absent"
+    purge: "yes"
+  loop: "{{sys_pkgs_absent|flatten}}"

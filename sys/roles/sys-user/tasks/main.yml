@@ -1,0 +1,11 @@
+---
+- name: "process groups"
+  group:
+    name: "{{item.name}}"
+    state: "{{item.state|default('present')}}"
+    gid: "{{item.gid|default(omit)}}"
+  with_items: "{{sys_user_groups|flatten}}"
+
+- name: "process user accounts"
+  include: "process_user_accounts.yml"
+  with_items: "{{sys_user_accounts|flatten}}"

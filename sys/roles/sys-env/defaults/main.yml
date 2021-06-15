@@ -1,0 +1,10 @@
+---
+sys_env_vimrc_set: "yes"
+sys_env_vimrc: |
+  set mouse=
+  set ttymouse=
+  syntax on
+  set background=dark
+
+# https://vcs.bingo-boom.ru/site-ng/ansible/preconf/blob/master/templates/motd
+# sys_env_kvm_ip: "no"

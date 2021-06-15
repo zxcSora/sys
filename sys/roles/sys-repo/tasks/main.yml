@@ -1,0 +1,72 @@
+---
+- name: "Collect info"
+  setup:
+
+- name: "setup default"
+  template:
+    src: "templates/etc/apt/sources.list.j2"
+    dest: "/etc/apt/sources.list"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "setup repo"
+  template:
+    src: "{{item.template}}"
+    dest: "/etc/apt/sources.list.d/{{item.template|basename|replace('.j2','')}}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items: "{{sys_repo}}"
+  when: item.state == 'present'
+
+- name: "setup gpg"
+  raw: |
+    echo {{lookup('file', '{{item.gpg}}')|quote}} | apt-key add -
+  changed_when: false
+  with_items: "{{sys_repo}}"
+  when: item.state == 'present' and item.gpg is defined
+
+- name: "remove repo"
+  file:
+    path: "/etc/apt/sources.list.d/{{item.template|basename|replace('.j2','')}}"
+    state: "absent"
+  with_items: "{{sys_repo}}"
+  when: item.state == 'absent'
+
+- name: "remove gpg"
+  raw: |
+    apt-key del {{item.gpg|basename|replace('.gpg','')|quote}} | grep -q OK
+  changed_when: false
+  with_items: "{{sys_repo}}"
+  when: item.state == 'absent' and item.gpg is defined
+
+- block:
+  - name: "get existing files"
+    raw: |
+      find /etc/apt/sources.list.d -type f -o -type l
+    register: sys_repo_current_files_out
+    changed_when: false
+
+  - name: "set managed files"
+    set_fact:
+      sys_repo_managed_files: "{{sys_repo_managed_files}} + ['/etc/apt/sources.list.d/' + '{{item.template|basename|replace('.j2','')}}']"
+    when:
+      item.template is defined and
+      item.state == 'present'
+    with_items: "{{sys_repo}}"
+
+  - name: "clean unmanaged files"
+    file:
+      path: "{{item}}"
+      state: "absent"
+    with_items: "{{sys_repo_current_files_out.stdout_lines}}"
+    when: item not in sys_repo_managed_files
+
+  when: sys_repo_clean_unmanaged == 'yes'
+
+- name: "update apt cache"
+  apt:
+    update_cache: yes
+  changed_when: false
+  when: sys_repo_update == 'yes'

@@ -1,0 +1,109 @@
+# ---
+# # Get fresh new one vm
+# - name: "setup vm"
+#   gather_facts: "yes"
+#   become: "yes"
+#   hosts:
+#     - pve2.offline.htz.shelopes.com
+#   roles:
+#     - role: "proxmox/roles/proxmox-vm"
+#       state: "absent"
+#       proxmox_vms:
+#         - name: "sys.delme"
+#           ansible_user: "root"
+#           template: "td9s"
+#           description: "testing vm for sys (preconf)"
+#           state: "absent"
+
+#         - name: "sys.delme"
+#           template: "td9s"
+#           description: "testing vm for sys (preconf)"
+#           state: "started"
+#           cores: "1"
+#           mem: "1024"
+#           disks:
+#             - {disk: "scsi0", size: "10G"}
+#           cloudinit_user:
+#             template: "templates/cloudinit/user/default.yml.j2"
+#           cloudinit_network:
+#             template: "templates/cloudinit/network/default.yml.j2"
+#           groups:
+#             - "auto_sys"
+#   tags:
+#     - "vms"
+
+# # Full setup and self destruct)
+# - name: "base system setup"
+#   become: "yes"
+#   gather_facts: "no"
+#   hosts:
+#     - auto_sys
+#   roles:
+#     - role: "sys/roles/sys-check"
+#     - role: "sys/roles/sys-sudo"
+#     - role: "sys/roles/sys-user"
+#     - role: "sys/roles/sys-check"
+#     - role: "sys/roles/sys-repo"
+#     - role: "sys/roles/sys-pkgs"
+#     - role: "sys/roles/sys-sysctl"
+#       sys_sysctl_custom:
+#         - {state: "present", template: "templates/etc/sysctl.d/98-vm-max-map-count.conf.j2"}
+#       sys_sysctl: "{{sys_sysctl_default + sys_sysctl_custom}}"
+#       # optional set custom profile sys_sysctl: "{{sys_sysctl_default + sys_sysctl_tuned_mmap}}"
+#     - role: "sys/roles/sys-env"
+#     - role: "sys/roles/sys-ssh"
+#     - role: "sys/roles/sys-clean"
+#       sys_clean_purge: "yes"
+#   tags:
+#     - "sys"
+
+# - name: "setup vm"
+#   gather_facts: "yes"
+#   become: "yes"
+#   hosts:
+#     - pve2.offline.htz.shelopes.com
+#   roles:
+#     - role: "proxmox/roles/proxmox-vm"
+#       state: "absent"
+#       proxmox_vms:
+#         - name: "sys.delme"
+#           ansible_user: "root"
+#           template: "td9s"
+#           description: "testing vm for sys (preconf)"
+#           state: "absent"
+---
+  - name: "base system setup"
+    become: "yes"
+    gather_facts: "yes"
+    hosts:
+      - "matrix-test.gce.shelopes.com"
+    roles:
+      - role: "~/git/sys/roles/sys-base"
+      - role: "~/git/sys/roles/sys-repo"
+      - role: "~/git/sys/roles/sys-pkgs"
+      - role: "~/git/sys/roles/sys-sudo"
+        sys_sudo:
+          - state: "present"
+            template: "templates/etc/sudoers.d/10-ansible-no-pass.j2"
+          - state: "absent"
+            template: "README"
+  
+      - role: "~/git/sys/roles/sys-user"
+        sys_user_accounts:
+            - name: "ansible"
+              state: "present"
+              groups: "sudo" # '' - only primary
+              comment: "CICD"
+              shell: "/bin/bash"
+              password: "*" # '!'' - disabled block ssh access,  '*' - not block ssh
+              ssh_pubs: "{{ sys_user_ansible_pubs }}"
+
+            - name: "root"
+              state: "present"
+              password: '!'
+  
+      - role: "~/git/sys/roles/sys-sysctl"
+      - role: "~/git/sys/roles/sys-env"
+      - role: "~/git/sys/roles/sys-ssh"
+      - role: "~/git/sys/roles/sys-clean"
+  

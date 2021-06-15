@@ -1,0 +1,38 @@
+---
+- name: "setup vimrc"
+  blockinfile:
+    path: /etc/vim/vimrc
+    marker: '" {mark}'
+    marker_begin: "CUSTOM_VIM_BEGIN"
+    marker_end: "CUSTOM_VIM_END"
+    state: present
+    block: '{{sys_env_vimrc}}'
+  when: sys_env_vimrc_set == "yes"
+
+- name: "remove custom vimrc"
+  blockinfile:
+    path: /etc/vim/vimrc
+    marker: '" {mark}'
+    marker_begin: "CUSTOM_VIM_BEGIN"
+    marker_end: "CUSTOM_VIM_END"
+    state: absent
+  when: sys_env_vimrc_set != "yes"
+
+# - name: "show ip in kvm console"
+#   raw: |
+#     # ansible bug every line starts with ' ' so 'EOF' -> ' EOF'
+#     cat > /etc/cron.d/login-ip-addr << " EOF"
+#      */10 * * * * root  sed -i '/#IP_BEGIN/,/#IP_END/d' /etc/issue;ip add | awk 'BEGIN{print "#IP_BEGIN\nPress Enter to refresh."} /^[0-9]+:|inet|ether /{print "   "$1" "$2}END{print "#IP_END"}' >> /etc/issue
+#     EOF
+#     true
+#   changed_when: false
+#   when: sys_env_kvm_ip == "yes"
+
+# - name: "disable ip in kvm console"
+#   raw: |
+#     rm -f /etc/cron.d/login-ip-addr
+#     grep IP_BEGIN /etc/issue || exit
+#     sed -i '/#IP_BEGIN/,/#IP_END/d' /etc/issue
+#     true
+#   changed_when: false
+#   when: sys_env_kvm_ip != "yes"

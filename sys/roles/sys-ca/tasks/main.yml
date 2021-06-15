@@ -1,0 +1,56 @@
+---
+- name: "purge"
+  block:
+    - name: "remove custom certs"
+      raw: |
+        find /usr/local/share/ca-certificates/ -type f -o -type -l -delete; update-ca-certificates -f
+    - meta: end_play
+  when: sys_ca_purge == "yes"
+
+- name: "install certificates"
+  include: present.yml
+  with_items: "{{sys_ca_certs}}"
+  when: item.state == "present"
+
+- name: "remove certificates"
+  include: absent.yml
+  with_items: "{{sys_ca_certs}}"
+  when: item.state == "absent"
+
+- block:
+  - name: "get existing files"
+    raw: |
+      find /usr/local/share/ca-certificates -type f -o -type l
+    register: sys_ca_current_files_out
+    changed_when: False
+    when: sys_ca_clean_unmanaged == "yes"
+
+  - name: "clean unmanaged files"
+    file:
+      path: "{{item}}"
+      state: "absent"
+    with_items: "{{sys_ca_current_files_out.stdout_lines|default([])}}"
+    when: item not in sys_ca_managed_files
+    register: sys_ca_certs_clean_unmanaged_out
+
+  - name: "set fact about cleaned unmanaged files"
+    set_fact:
+      sys_ca_certs_changed: "{{sys_ca_certs_changed or sys_ca_certs_clean_unmanaged_out.changed}}"
+    when: sys_ca_clean_unmanaged == "yes"
+
+- name: "run update-ca-certificates"
+  raw: |
+    update-ca-certificates -f
+  when: sys_ca_certs_changed or sys_ca_force_update == "yes"
+
+- block:
+  - name: "load services list"
+    service_facts:
+
+  - name: "reload services"
+    include: "reload.yml"
+    with_items: "{{sys_ca_reload_daemons}}"
+
+  when:
+    - sys_ca_reload_daemon == "yes"
+    - sys_ca_certs_changed

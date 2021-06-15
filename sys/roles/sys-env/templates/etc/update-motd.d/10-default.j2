@@ -1,0 +1,10 @@
+#!/bin/sh
+
+echo "
+fqdn: {{ansible_fqdn}}
+os: {{ansible_distribution_file_variety}} {{ansible_distribution_version}}
+address: {{ansible_all_ipv4_addresses}}
+cores: {{ansible_processor_cores}}
+mem: {{ansible_memtotal_mb}}
+last base setup: {{ansible_date_time.iso8601_micro}}
+"
